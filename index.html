@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <!-- 架构级隐私承诺：connect-src 'none' 禁止一切 fetch/XHR/WebSocket 外呼；所有资源仅同源。 -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 内联 SVG favicon（data URI，不产生任何网络请求）：品牌绿底 ¥ -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232f7d5d'/%3E%3Ctext x='16' y='23' font-size='22' font-family='sans-serif' fill='white' text-anchor='middle'%3E%C2%A5%3C/text%3E%3C/svg%3E" />
+  <meta name="description" content="债务管家网页版：免安装的还款计算器。月供计算、真实年化利率（IRR）、提前还款净省测算、雪崩雪球还款顺序对比。纯本地计算，数据不上传。" />
+  <title>债务管家 · 网页版 — 还款计算 / 真实年化 / 提前还款测算</title>
+  <script type="module" crossorigin src="./assets/index-DwF0e_bJ.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BYulTnMo.css">
+</head>
+<body>
+  <header class="hero">
+    <h1>债务管家 <span class="tag">网页版</span></h1>
+    <p class="sub">理清多笔债务，算清真实利率 · 免安装 · 纯本地计算，数据不上传</p>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-panel="panel-calc">月供计算</button>
+    <button class="tab" data-panel="panel-irr">真实年化</button>
+    <button class="tab" data-panel="panel-prepay">提前还款</button>
+    <button class="tab" data-panel="panel-order">还款顺序</button>
+  </nav>
+
+  <main>
+    <!-- ① 月供计算 -->
+    <section id="panel-calc" class="panel active">
+      <div class="card form">
+        <label>本金（元）<input id="calc-principal" type="number" inputmode="decimal" min="0" placeholder="如 120000" /></label>
+        <label>还款方式
+          <select id="calc-method">
+            <option value="EQUAL_INSTALLMENT">等额本息（每月还款额固定）</option>
+            <option value="EQUAL_PRINCIPAL">等额本金（每月本金固定、利息递减）</option>
+            <option value="INTEREST_FIRST">先息后本（每月只还息，末期还本）</option>
+            <option value="INSTALLMENT_FEE">信用卡分期（每期收手续费）</option>
+          </select>
+        </label>
+        <label id="calc-rate-wrap">年利率（%）<input id="calc-rate" type="number" inputmode="decimal" min="0" step="0.01" placeholder="如 12" /></label>
+        <label id="calc-fee-wrap" hidden>每期手续费率（%）<input id="calc-fee" type="number" inputmode="decimal" min="0" step="0.01" placeholder="如 0.6" /></label>
+        <label>期数（月）<input id="calc-periods" type="number" inputmode="numeric" min="1" placeholder="如 12" /></label>
+        <button class="primary" id="calc-btn">计算</button>
+        <p class="error" id="calc-error" hidden></p>
+      </div>
+      <div class="card result" id="calc-result" hidden>
+        <div class="stats" id="calc-stats"></div>
+        <details>
+          <summary>查看每期明细</summary>
+          <div class="table-wrap">
+            <table id="calc-table">
+              <thead><tr><th>期</th><th>应还</th><th>本金</th><th>利息/费</th><th>剩余本金</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ② 真实年化 -->
+    <section id="panel-irr" class="panel">
+      <div class="card form">
+        <p class="hint">把"名义利率 / 手续费率"换算成你真正承担的<strong>年化利率（复利 IRR 口径）</strong>——分期手续费的真实成本通常远高于名义数字。</p>
+        <label>本金（元）<input id="irr-principal" type="number" inputmode="decimal" min="0" placeholder="如 120000" /></label>
+        <label>还款方式
+          <select id="irr-method">
+            <option value="INSTALLMENT_FEE">信用卡分期（每期收手续费）</option>
+            <option value="EQUAL_INSTALLMENT">等额本息</option>
+            <option value="EQUAL_PRINCIPAL">等额本金</option>
+            <option value="INTEREST_FIRST">先息后本</option>
+          </select>
+        </label>
+        <label id="irr-rate-wrap" hidden>年利率（%）<input id="irr-rate" type="number" inputmode="decimal" min="0" step="0.01" placeholder="如 12" /></label>
+        <label id="irr-fee-wrap">每期手续费率（%）<input id="irr-fee" type="number" inputmode="decimal" min="0" step="0.01" placeholder="如 0.6" /></label>
+        <label>期数（月）<input id="irr-periods" type="number" inputmode="numeric" min="1" placeholder="如 12" /></label>
+        <button class="primary" id="irr-btn">算真实年化</button>
+        <p class="error" id="irr-error" hidden></p>
+      </div>
+      <div class="card result" id="irr-result" hidden>
+        <div class="irr-big"><span class="label">真实年化（复利 IRR）</span><strong id="irr-value" class="hero-num"></strong></div>
+        <p id="irr-nominal" class="muted"></p>
+        <p id="irr-lpr"></p>
+        <p class="foot">4×LPR 参考线仅做数值比较，不构成任何法律认定或建议；LPR 以央行最新公布为准。真实年化按央行口径以复利 IRR 计算。</p>
+      </div>
+    </section>
+
+    <!-- ③ 提前还款 -->
+    <section id="panel-prepay" class="panel">
+      <div class="card form">
+        <p class="hint">模拟"正常还到第 N 期后提前还入一笔"：能省多少利息、缩短多久，扣掉违约金后到底划不划算。目前支持等额本息。</p>
+        <label>本金（元）<input id="pp-principal" type="number" inputmode="decimal" min="0" placeholder="如 120000" /></label>
+        <label>年利率（%）<input id="pp-rate" type="number" inputmode="decimal" min="0" step="0.01" placeholder="如 12" /></label>
+        <label>总期数（月）<input id="pp-periods" type="number" inputmode="numeric" min="2" placeholder="如 12" /></label>
+        <label>已正常还款期数<input id="pp-paid" type="number" inputmode="numeric" min="1" placeholder="如 6" /></label>
+        <label>提前还款金额（元）<input id="pp-extra" type="number" inputmode="decimal" min="0" placeholder="如 30000" /></label>
+        <label>违约金/手续费（元，没有填 0）<input id="pp-penalty" type="number" inputmode="decimal" min="0" value="0" /></label>
+        <fieldset class="modes">
+          <legend>方式</legend>
+          <label class="mode"><input type="radio" name="pp-mode" value="SHORTEN_TERM" checked />缩短期数（月供不变）</label>
+          <label class="mode"><input type="radio" name="pp-mode" value="REDUCE_PAYMENT" />减少月供（期数不变）</label>
+        </fieldset>
+        <button class="primary" id="pp-btn">计算可省</button>
+        <p class="error" id="pp-error" hidden></p>
+      </div>
+      <div class="card result" id="pp-result" hidden>
+        <div class="irr-big"><span class="label" id="pp-headline"></span><strong id="pp-net" class="hero-num"></strong></div>
+        <p id="pp-breakdown" class="muted"></p>
+        <p id="pp-mode-line"></p>
+        <p id="pp-warn" class="warn" hidden>⚠ 违约金高于省息，本次提前还款反而多付钱</p>
+      </div>
+    </section>
+
+    <!-- ④ 还款顺序 -->
+    <section id="panel-order" class="panel">
+      <div class="card form">
+        <p class="hint">录入多笔债务，对比两种还清顺序：<strong>雪崩法</strong>（先还利率最高，总利息最省）vs <strong>雪球法</strong>（先清金额最小，激励感强）。内容自动保存在本机浏览器。</p>
+        <div id="order-list"></div>
+        <div class="row-btns">
+          <button class="ghost" id="order-add">＋ 添加一笔</button>
+          <button class="primary" id="order-btn">对比顺序</button>
+        </div>
+        <p class="error" id="order-error" hidden></p>
+      </div>
+      <div class="card result" id="order-summary" hidden>
+        <div class="stats" id="order-stats"></div>
+      </div>
+      <div class="order-cols">
+        <div class="card result" id="order-avalanche" hidden>
+          <h3>🏔 雪崩法 · 利率高→低（总利息最省）</h3>
+          <ol class="order-ol"></ol>
+        </div>
+        <div class="card result" id="order-snowball" hidden>
+          <h3>⛄ 雪球法 · 金额小→大（先清小额）</h3>
+          <ol class="order-ol"></ol>
+        </div>
+      </div>
+      <div class="card">
+        <details>
+          <summary>数据备份（导出 / 导入）</summary>
+          <p class="muted">数据只存在你的浏览器本地。清除浏览器数据会丢失，重要数据请导出备份；换设备可导入恢复。</p>
+          <div class="row-btns">
+            <button class="ghost" id="export-btn">导出 JSON</button>
+            <label class="ghost file-label">导入 JSON<input id="import-file" type="file" accept="application/json" hidden /></label>
+          </div>
+          <p class="muted" id="io-msg" hidden></p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot-area">
+    <p><strong>隐私：</strong>本页面所有计算在你的浏览器本地完成，无任何数据上传、无统计脚本、无 Cookie、无账号；录入内容仅保存在你设备的浏览器中，清除浏览器数据即删除。</p>
+    <p><strong>免责声明：</strong>本页面的计算结果仅供参考，不构成任何投资、财务或法律建议。实际还款金额、利率与费用请以银行 / 放贷机构的合同与账单为准，请勿仅依据本页面结果做出财务决策。</p>
+    <p><strong>完整版：</strong>华为手机（HarmonyOS 5 及以上）可在应用市场搜索「债务管家」获取 App 完整版——多债务长期管理、还款日历提醒、桌面倒计时卡片。</p>
+    <p class="muted">官方入口仅两个：华为应用市场「债务管家」（开发者：田杰）与本页面；其他来源均非官方版本。</p>
+  </footer>
+</body>
+</html>
